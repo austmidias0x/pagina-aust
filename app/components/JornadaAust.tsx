@@ -50,29 +50,6 @@ export default function JornadaAust() {
     }
   ];
 
-  const getColorClasses = (color: string) => {
-    const colors = {
-      red: {
-        bg: "from-red-900/30 to-red-800/20",
-        border: "border-red-500/30",
-        text: "text-red-300",
-        accent: "text-red-200"
-      },
-      yellow: {
-        bg: "from-yellow-900/30 to-yellow-800/20", 
-        border: "border-yellow-500/30",
-        text: "text-yellow-300",
-        accent: "text-yellow-200"
-      },
-      green: {
-        bg: "from-green-900/30 to-green-800/20",
-        border: "border-green-500/30", 
-        text: "text-green-300",
-        accent: "text-green-200"
-      }
-    };
-    return colors[color as keyof typeof colors];
-  };
 
   return (
     <section ref={sectionRef} className="py-32 px-6">

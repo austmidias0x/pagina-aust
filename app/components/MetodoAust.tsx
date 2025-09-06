@@ -63,7 +63,7 @@ export default function MetodoAust() {
               </div>
               
               <p className="text-white mt-8">
-                Essa mudança já começou. Empresas que insistem no modelo antigo de "fazer negócio" estão perdendo 
+                Essa mudança já começou. Empresas que insistem no modelo antigo de &quot;fazer negócio&quot; estão perdendo 
                 relevância para aquelas que operam como expressões de essência.
               </p>
             </div>

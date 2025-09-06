@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 
 export default function ComoTrabalhamos() {
   const [isVisible, setIsVisible] = useState(false);
-  const [activeTab, setActiveTab] = useState(0);
   const sectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -77,29 +76,6 @@ export default function ComoTrabalhamos() {
     }
   ];
 
-  const getColorClasses = (color: string) => {
-    const colors = {
-      blue: {
-        bg: "from-blue-900/40 to-blue-800/20",
-        border: "border-blue-500/30",
-        text: "text-blue-300",
-        button: "bg-blue-500/20 hover:bg-blue-500/30 border-blue-500/30 text-blue-300"
-      },
-      purple: {
-        bg: "from-purple-900/40 to-purple-800/20",
-        border: "border-purple-500/30", 
-        text: "text-purple-300",
-        button: "bg-purple-500/20 hover:bg-purple-500/30 border-purple-500/30 text-purple-300"
-      },
-      green: {
-        bg: "from-green-900/40 to-green-800/20",
-        border: "border-green-500/30",
-        text: "text-green-300", 
-        button: "bg-green-500/20 hover:bg-green-500/30 border-green-500/30 text-green-300"
-      }
-    };
-    return colors[color as keyof typeof colors];
-  };
 
   return (
     <section ref={sectionRef} className="py-32 px-6">

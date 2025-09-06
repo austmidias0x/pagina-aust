@@ -75,7 +75,7 @@ export default function EssenciaSection() {
                   <h4 className="text-lg font-medium mb-3 text-gray-200">Nível Pós-Moderno</h4>
                   <p className="text-gray-400 text-sm leading-relaxed">
                     Compreendem contextos múltiplos, entendem perspectivas diferentes, conseguem navegar complexidade. 
-                    Mas ainda operam dentro da lógica de "eu tenho uma empresa" ao invés de "eu sou uma manifestação empresarial".
+                    Mas ainda operam dentro da lógica de &quot;eu tenho uma empresa&quot; ao invés de &quot;eu sou uma manifestação empresarial&quot;.
                   </p>
                 </div>
                 
