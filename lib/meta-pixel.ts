@@ -2,7 +2,7 @@
 
 declare global {
   interface Window {
-    fbq?: (...args: any[]) => void;
+    fbq?: (...args: unknown[]) => void;
   }
 }
 
@@ -12,7 +12,7 @@ export interface MetaPixelEventData {
   value?: number;
   currency?: string;
   status?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**

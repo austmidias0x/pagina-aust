@@ -130,10 +130,10 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
     
     try {
       console.log('🔄 [MODAL] Mapeando dados...');
-      const leadData = ApiService.mapFormDataToLead(data as any);
+      const leadData = ApiService.mapFormDataToLead(data);
       
       console.log('📡 [MODAL] Enviando para APIs...');
-      const result = await ApiService.submitLead(leadData, data as any);
+      const result = await ApiService.submitLead(leadData);
       
       console.log('📨 [MODAL] Resultado das APIs:', result);
       
@@ -374,7 +374,7 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
                               Conte-nos um pouquinho mais para continuar
                             </p>
                             <p className="text-blue-300 text-xs mt-1">
-                              Escreva pelo menos algumas palavras ou use "Pular etapa" se preferir não responder.
+                              Escreva pelo menos algumas palavras ou use &quot;Pular etapa&quot; se preferir não responder.
                             </p>
                           </div>
                         </div>
@@ -433,7 +433,7 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
                               Conte-nos um pouquinho mais para continuar
                             </p>
                             <p className="text-blue-300 text-xs mt-1">
-                              Escreva pelo menos algumas palavras ou use "Pular etapa" se preferir não responder.
+                              Escreva pelo menos algumas palavras ou use &quot;Pular etapa&quot; se preferir não responder.
                             </p>
                           </div>
                         </div>

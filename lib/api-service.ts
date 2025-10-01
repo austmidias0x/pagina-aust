@@ -21,7 +21,7 @@ export interface WebhookPayload {
   };
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -57,7 +57,7 @@ export class ApiService {
   /**
    * Envia lead para o webhook
    */
-  static async submitLead(leadData: LeadData, originalData: LeadData): Promise<ApiResponse> {
+  static async submitLead(leadData: LeadData): Promise<ApiResponse> {
     try {
       console.log('📡 [API-SERVICE] Preparando dados para envio...');
       console.log('📝 [API-SERVICE] Dados originais:', leadData);
