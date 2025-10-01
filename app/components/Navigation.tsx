@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { ShimmerButton } from '@/components/ui/shimmer-button';
+import { SubscriptionModal } from './subscription-modal';
 
 export default function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -68,9 +71,17 @@ export default function Navigation() {
             >
               Como Trabalhamos
             </button>
-            <button className="px-6 py-2 bg-white text-black font-medium rounded-full hover:bg-gray-200 transition-all duration-300">
-              Conversar
-            </button>
+            <ShimmerButton 
+              onClick={() => setIsModalOpen(true)}
+              shimmerColor="#000000"
+              shimmerSize="0.15em"
+              shimmerDuration="2.5s"
+              borderRadius="4px"
+              background="rgba(255, 255, 255, 1)"
+              className="px-5 py-2 text-sm font-medium text-black"
+            >
+              Ativar Próximo Nível
+            </ShimmerButton>
           </div>
 
           {/* Mobile Menu Button */}
@@ -121,12 +132,26 @@ export default function Navigation() {
             >
               Como Trabalhamos
             </button>
-            <button className="px-6 py-2 bg-white text-black font-medium rounded-full hover:bg-gray-200 transition-all duration-300 w-fit">
-              Conversar
-            </button>
+            <ShimmerButton 
+              onClick={() => {
+                setIsModalOpen(true);
+                setIsMobileMenuOpen(false);
+              }}
+              shimmerColor="#000000"
+              shimmerSize="0.15em"
+              shimmerDuration="2.5s"
+              borderRadius="4px"
+              background="rgba(255, 255, 255, 1)"
+              className="px-5 py-2 text-sm font-medium text-black w-fit"
+            >
+              Ativar Próximo Nível
+            </ShimmerButton>
           </div>
         </div>
       </div>
+
+      {/* Modal de Inscrição */}
+      <SubscriptionModal open={isModalOpen} onOpenChange={setIsModalOpen} />
     </nav>
   );
 }

@@ -1,13 +1,23 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { SubscriptionModal } from './subscription-modal';
+import { ShimmerButton } from '@/components/ui/shimmer-button';
 
 export default function Hero() {
   const [isVisible, setIsVisible] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     setIsVisible(true);
   }, []);
+
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   return (
     <section className="min-h-screen flex items-center justify-center relative">
@@ -34,10 +44,21 @@ export default function Hero() {
         </div>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <button className="px-8 py-3 bg-white text-black font-medium hover:bg-gray-100 transition-all duration-300">
-            Descobrir Sua Essência
-          </button>
-          <button className="px-8 py-3 border border-gray-600 text-gray-300 font-medium hover:border-gray-400 hover:text-white transition-all duration-300">
+          <ShimmerButton 
+            onClick={() => setIsModalOpen(true)}
+            shimmerColor="#000000"
+            shimmerSize="0.15em"
+            shimmerDuration="2.5s"
+            borderRadius="4px"
+            background="rgba(255, 255, 255, 1)"
+            className="px-8 py-3 font-medium text-black shadow-2xl"
+          >
+            Ativar o Próximo Nível
+          </ShimmerButton>
+          <button 
+            onClick={() => scrollToSection('jornada')}
+            className="px-8 py-3 border border-gray-600 text-gray-300 font-medium hover:border-gray-400 hover:text-white transition-all duration-300 rounded"
+          >
             Conhecer a Jornada
           </button>
         </div>
@@ -47,6 +68,9 @@ export default function Hero() {
       <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
         <div className="w-px h-8 bg-gray-600"></div>
       </div>
+
+      {/* Modal de Inscrição */}
+      <SubscriptionModal open={isModalOpen} onOpenChange={setIsModalOpen} />
     </section>
   );
 }

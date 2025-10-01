@@ -41,6 +41,27 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite alternate;
+  --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
+  @keyframes shimmer-slide {
+  to {
+    transform: translate(calc(100cqw - 100%), 0);
+    }
+  }
+  @keyframes spin-around {
+  0% {
+    transform: translateZ(0) rotate(0);
+    }
+  15%, 35% {
+    transform: translateZ(0) rotate(90deg);
+    }
+  65%, 85% {
+    transform: translateZ(0) rotate(270deg);
+    }
+  100% {
+    transform: translateZ(0) rotate(360deg);
+    }
+  }
 }
 
 :root {
@@ -112,11 +133,33 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* Shimmer Button Keyframes */
+@keyframes shimmer-slide {
+  to {
+    transform: translate(calc(100cqw - 100%), 0);
+  }
+}
+
+@keyframes spin-around {
+  0% {
+    transform: translateZ(0) rotate(0);
+  }
+  15%, 35% {
+    transform: translateZ(0) rotate(90deg);
+  }
+  65%, 85% {
+    transform: translateZ(0) rotate(270deg);
+  }
+  100% {
+    transform: translateZ(0) rotate(360deg);
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  
+ 
   body {
     @apply bg-background text-foreground;
     font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
@@ -124,36 +167,36 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  
+ 
   html {
     scroll-behavior: smooth;
     scroll-padding-top: 80px;
   }
-  
+
   /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
   }
-  
+
   ::-webkit-scrollbar-track {
     background: rgba(255, 255, 255, 0.05);
   }
-  
+
   ::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.2);
     border-radius: 4px;
   }
-  
+
   ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.3);
   }
-  
+
   /* Selection */
   ::selection {
     background: rgba(59, 130, 246, 0.3);
     color: white;
   }
-  
+
   /* Focus states */
   button:focus-visible,
   a:focus-visible {
@@ -190,4 +233,26 @@
 .animate-gradient {
   background-size: 200% 200%;
   animation: gradient-shift 8s ease infinite;
+}
+
+/* Custom dark theme classes for modal */
+.bg-dark-card {
+  background-color: rgb(23 23 23);
+}
+
+.bg-dark-bg {
+  background-color: rgb(10 10 10);
+}
+
+.border-dark-border {
+  border-color: rgb(38 38 38);
+}
+
+/* Shimmer Button Animations */
+.animate-shimmer-slide {
+  animation: shimmer-slide var(--speed) ease-in-out infinite alternate;
+}
+
+.animate-spin-around {
+  animation: spin-around calc(var(--speed) * 2) infinite linear;
 }

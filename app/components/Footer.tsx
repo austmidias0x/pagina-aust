@@ -1,4 +1,12 @@
+'use client';
+
+import { useState } from 'react';
+import { ShimmerButton } from '@/components/ui/shimmer-button';
+import { SubscriptionModal } from './subscription-modal';
+
 export default function Footer() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   return (
     <footer className="py-24 px-6 border-t border-gray-800">
       <div className="max-w-4xl mx-auto">
@@ -10,9 +18,19 @@ export default function Footer() {
             Nossa missão é formar empresas que crescem mantendo identidade. Negócios que escalam sem perder o que os torna únicos. 
             Empreendedores que encontraram forma de viver através do que constroem.
           </p>
-          <button className="px-8 py-3 bg-white text-black font-medium hover:bg-gray-100 transition-all duration-300">
-            Conversar com a AUST
-          </button>
+          <div className="flex justify-center">
+            <ShimmerButton 
+              onClick={() => setIsModalOpen(true)}
+              shimmerColor="#000000"
+              shimmerSize="0.15em"
+              shimmerDuration="2.5s"
+              borderRadius="4px"
+              background="rgba(255, 255, 255, 1)"
+              className="px-8 py-3 font-medium text-black shadow-2xl"
+            >
+              Ativar o Próximo Nível
+            </ShimmerButton>
+          </div>
         </div>
         
         <div className="grid md:grid-cols-3 gap-12 mb-16">
@@ -35,8 +53,8 @@ export default function Footer() {
           <div>
             <h3 className="text-lg font-medium mb-4 text-white">Contato</h3>
             <div className="space-y-2 text-gray-400 text-sm">
-              <p>contato@aust.com.br</p>
-              <p>www.aust.com.br</p>
+              <p>austmidias@gmail.com</p>
+              <p>austcorp.io</p>
             </div>
           </div>
         </div>
@@ -48,6 +66,9 @@ export default function Footer() {
           </p>
         </div>
       </div>
+
+      {/* Modal de Inscrição */}
+      <SubscriptionModal open={isModalOpen} onOpenChange={setIsModalOpen} />
     </footer>
   );
 }
