@@ -76,6 +76,7 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
   const [error, setError] = useState<string | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isSafari, setIsSafari] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const form = useForm<SubscriptionData>({
     resolver: zodResolver(subscriptionSchema),
@@ -121,6 +122,26 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
     };
   }, [open]);
 
+  // Auto-save quando usuário tenta sair da página
+  useEffect(() => {
+    if (!open) return;
+
+    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
+      if (currentStep >= 1 && !hasSubmitted && !isSuccess) {
+        e.preventDefault();
+        await submitPartialData();
+        // Alguns navegadores mostram uma mensagem de confirmação
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [open, currentStep, hasSubmitted, isSuccess]);
+
   const onSubmit = async (data: SubscriptionData) => {
     console.log('🎯 [MODAL] Iniciando processo de envio...');
     console.log('📝 [MODAL] Dados do formulário:', data);
@@ -147,6 +168,7 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
         });
         
         setIsSuccess(true);
+        setHasSubmitted(true);
         
         setTimeout(() => {
           console.log('🔄 [MODAL] Fechando modal e resetando...');
@@ -155,6 +177,7 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
           form.reset();
           setError(null);
           setCurrentStep(0);
+          setHasSubmitted(false);
         }, 3000);
       } else {
         console.error("❌ [MODAL] Erro da API:", result.error);
@@ -169,26 +192,95 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
     }
   };
 
-  const handleOpenChange = (newOpen: boolean) => {
+  // Função para enviar dados parciais
+  const submitPartialData = async () => {
+    if (hasSubmitted || isSubmitting) {
+      console.log('⏭️ [AUTO-SAVE] Já enviado ou enviando, pulando...');
+      return;
+    }
+
+    const name = form.getValues('name');
+    const email = form.getValues('email');
+    const phone = form.getValues('phone');
+
+    // Verificar se tem os dados mínimos (etapa 1 completa)
+    const hasMinimalData = name && name.length >= 2 && 
+                          email && email.includes('@') && 
+                          phone && /^(\+55\s?)?(\(?\d{2}\)?\s?)?\d{4,5}\-?\d{4}$/.test(phone);
+
+    if (!hasMinimalData) {
+      console.log('⏭️ [AUTO-SAVE] Dados mínimos não preenchidos, não enviando');
+      return;
+    }
+
+    console.log('💾 [AUTO-SAVE] Enviando dados parciais...');
+    
+    const partialData: SubscriptionData = {
+      name,
+      email,
+      phone,
+      companyDescription: form.getValues('companyDescription'),
+      growthBlocker: form.getValues('growthBlocker'),
+      instagram: form.getValues('instagram') || '',
+      revenue: form.getValues('revenue') || '<10k',
+    };
+
+    try {
+      const leadData = ApiService.mapFormDataToLead(partialData);
+      const result = await ApiService.submitLead(leadData);
+      
+      if (result.success) {
+        console.log("✅ [AUTO-SAVE] Dados parciais enviados com sucesso");
+        setHasSubmitted(true);
+        
+        trackApplication({ content_name: "Formulário Parcial - Contato" });
+        trackMetaPixelEvent('Lead', {
+          content_name: 'Lead Parcial AUST',
+          status: 'partial'
+        });
+      }
+    } catch (error) {
+      console.error("❌ [AUTO-SAVE] Erro ao enviar dados parciais:", error);
+    }
+  };
+
+  const handleOpenChange = async (newOpen: boolean) => {
     if (!isSubmitting) {
+      // Se está fechando o modal e não enviou ainda, tentar enviar dados parciais
+      if (!newOpen && currentStep >= 1 && !hasSubmitted && !isSuccess) {
+        await submitPartialData();
+      }
+
       onOpenChange(newOpen);
       if (!newOpen) {
-        form.reset();
-        setIsSuccess(false);
-        setCurrentStep(0);
-        setShowSkipWarning(false);
-        setShowMinTextWarning(false);
-        setError(null);
+        // Aguardar um pouco antes de resetar para dar tempo do envio
+        setTimeout(() => {
+          form.reset();
+          setIsSuccess(false);
+          setCurrentStep(0);
+          setShowSkipWarning(false);
+          setShowMinTextWarning(false);
+          setError(null);
+          setHasSubmitted(false);
+        }, 500);
       }
     }
   };
 
   const handleNext = () => {
-    if (currentStep === 4) {
-      // Última etapa - validar e enviar
-      form.handleSubmit(onSubmit)();
-    } else if (currentStep === 3) {
-      // Validar etapa 3 (Instagram e Revenue)
+    if (currentStep === 1) {
+      // Etapa 1 (Contato) - validar campos obrigatórios
+      const nameValid = form.getValues('name').length >= 2;
+      const emailValid = form.getValues('email').includes('@');
+      const phoneValid = /^(\+55\s?)?(\(?\d{2}\)?\s?)?\d{4,5}\-?\d{4}$/.test(form.getValues('phone'));
+      
+      if (!nameValid || !emailValid || !phoneValid) {
+        form.trigger(['name', 'email', 'phone']);
+        return;
+      }
+      setCurrentStep(prev => prev + 1);
+    } else if (currentStep === 4) {
+      // Etapa 4 (Infos do negócio) - validar Instagram e Revenue e enviar
       const instagramValid = form.getValues('instagram').length > 0;
       const revenueValid = form.getValues('revenue') !== undefined;
       
@@ -196,7 +288,8 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
         form.trigger(['instagram', 'revenue']);
         return;
       }
-      setCurrentStep(prev => prev + 1);
+      // Enviar formulário
+      form.handleSubmit(onSubmit)();
     } else {
       setCurrentStep(prev => prev + 1);
     }
@@ -205,13 +298,13 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
 
   // Verificar se pode avançar nas etapas opcionais
   const canContinue = () => {
-    if (currentStep === 1) {
-      const description = form.watch('companyDescription') || '';
-      return description.trim().length >= 20; // Mínimo de 20 caracteres
-    }
     if (currentStep === 2) {
+      const description = form.watch('companyDescription') || '';
+      return description.trim().length >= 6; // Mínimo de 6 caracteres
+    }
+    if (currentStep === 3) {
       const blocker = form.watch('growthBlocker') || '';
-      return blocker.trim().length >= 20; // Mínimo de 20 caracteres
+      return blocker.trim().length >= 6; // Mínimo de 6 caracteres
     }
     return true; // Outras etapas sempre podem continuar
   };
@@ -243,7 +336,7 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
     }
   };
 
-  const canSkip = currentStep === 1 || currentStep === 2;
+  const canSkip = currentStep === 2 || currentStep === 3;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -284,233 +377,39 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
                 </div>
               </div>
             </>
-          ) : currentStep === 0 ? (
-            /* Etapa 0 - Introdução */
-            <>
-              <DialogHeader className="text-center space-y-4 mb-6">
-                <DialogTitle className="text-2xl md:text-3xl font-bold leading-tight">
-                  Apresente sua operação, conte sua trajetória e receba um diagnóstico completo
-                </DialogTitle>
-              </DialogHeader>
+        ) : currentStep === 0 ? (
+          /* Etapa 0 - Introdução */
+          <>
+            <DialogHeader className="text-center space-y-4 mb-6">
+              <DialogTitle className="text-2xl md:text-3xl font-bold leading-tight">
+                Apresente sua operação, conte sua trajetória e receba um diagnóstico completo
+              </DialogTitle>
+            </DialogHeader>
 
-              <div className="space-y-6 py-4">
-                <p className="text-gray-300 leading-relaxed text-base">
-                  Aplique para uma reunião com os sócios da AUST. Analisamos seus domínios, 
-                  identificamos o que está travando sua escala e revelamos como liberar o 
-                  potencial do seu negócio.
-                </p>
+            <div className="space-y-6 py-4">
+              <p className="text-gray-300 leading-relaxed text-base">
+                Aplique para uma reunião com os sócios da AUST. Analisamos seus domínios, identificamos o que está travando sua escala e revelamos como liberar o potencial do seu negócio.
+              </p>
 
-                <p className="text-gray-400 leading-relaxed text-sm">
-                  Para empresários que já faturam mas sentem que falta algo para crescer de verdade. 
-                  Verificamos a compatibilidade entre seu momento e nossa forma de trabalhar, havendo 
-                  alinhamento, você apresenta sua operação e recebe um plano completo para o próximo patamar.
-                </p>
-
-                <div className="pt-6">
-                  <Button
-                    onClick={() => setCurrentStep(1)}
-                    className="w-full bg-gradient-to-r from-white to-gray-100 text-black font-bold h-12 text-base hover:from-gray-100 hover:to-gray-200 transition-all duration-300 shadow-lg transform hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    <span className="mr-2">→</span>
-                    Apresentar Minha Operação
-                  </Button>
-                </div>
+              <div className="pt-6">
+                <Button
+                  onClick={() => setCurrentStep(1)}
+                  className="w-full bg-gradient-to-r from-white to-gray-100 text-black font-bold h-12 text-base hover:from-gray-100 hover:to-gray-200 transition-all duration-300 shadow-lg transform hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <span className="mr-2">→</span>
+                  Apresentar Minha Operação
+                </Button>
               </div>
-            </>
-          ) : (
+            </div>
+          </>
+        ) : (
             /* Formulário Multi-etapas */
             <>
               <Form {...form}>
                 <div className="space-y-6">
                   
-                  {/* Etapa 1 - O que sua empresa faz */}
+                  {/* Etapa 1 - Contato */}
                   {currentStep === 1 && (
-                    <div className="space-y-6">
-                      <DialogHeader className="text-center space-y-2">
-                        <DialogTitle className="text-xl md:text-2xl font-bold">
-                          Conte brevemente: o que sua empresa faz e para quem?
-                        </DialogTitle>
-                        <DialogDescription className="text-gray-400 text-sm">
-                          Isso nos ajuda a entender melhor seu negócio
-                        </DialogDescription>
-                      </DialogHeader>
-
-                      <FormField
-                        control={form.control}
-                        name="companyDescription"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Textarea
-                                placeholder="Ex: Consultoria estratégica para empresas B2B que faturam entre 100k-500k/mês e querem estruturar seus processos comerciais..."
-                                className="bg-dark-bg border-dark-border text-white placeholder:text-gray-500 min-h-[150px] text-base resize-none"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      {showSkipWarning && (
-                        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 flex items-start space-x-3 animate-in fade-in duration-300">
-                          <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <p className="text-yellow-200 text-sm font-medium">
-                              Atenção: Pular esta etapa pode reduzir suas chances
-                            </p>
-                            <p className="text-yellow-300 text-xs mt-1">
-                              Quanto mais informações você fornecer, melhor conseguiremos avaliar a compatibilidade.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {showMinTextWarning && (
-                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 flex items-start space-x-3 animate-in fade-in duration-300">
-                          <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <p className="text-blue-200 text-sm font-medium">
-                              Conte-nos um pouquinho mais para continuar
-                            </p>
-                            <p className="text-blue-300 text-xs mt-1">
-                              Escreva pelo menos algumas palavras ou use &quot;Pular etapa&quot; se preferir não responder.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Etapa 2 - O que impede o crescimento */}
-                  {currentStep === 2 && (
-                    <div className="space-y-6">
-                      <DialogHeader className="text-center space-y-2">
-                        <DialogTitle className="text-xl md:text-2xl font-bold">
-                          O que você sente que está impedindo sua empresa de alcançar o próximo patamar?
-                        </DialogTitle>
-                        <DialogDescription className="text-gray-400 text-sm">
-                          Seja sincero, isso é crucial para nosso diagnóstico
-                        </DialogDescription>
-                      </DialogHeader>
-
-                      <FormField
-                        control={form.control}
-                        name="growthBlocker"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Textarea
-                                placeholder="Ex: Sinto que falta estrutura na operação, dependemos muito de mim para fechar negócios, não temos processos claros..."
-                                className="bg-dark-bg border-dark-border text-white placeholder:text-gray-500 min-h-[150px] text-base resize-none"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      {showSkipWarning && (
-                        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 flex items-start space-x-3 animate-in fade-in duration-300">
-                          <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <p className="text-yellow-200 text-sm font-medium">
-                              Atenção: Pular esta etapa pode reduzir suas chances
-                            </p>
-                            <p className="text-yellow-300 text-xs mt-1">
-                              Entender seu bloqueio atual é essencial para identificarmos se podemos ajudar.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {showMinTextWarning && (
-                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 flex items-start space-x-3 animate-in fade-in duration-300">
-                          <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <p className="text-blue-200 text-sm font-medium">
-                              Conte-nos um pouquinho mais para continuar
-                            </p>
-                            <p className="text-blue-300 text-xs mt-1">
-                              Escreva pelo menos algumas palavras ou use &quot;Pular etapa&quot; se preferir não responder.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Etapa 3 - Infos do negócio */}
-                  {currentStep === 3 && (
-                    <div className="space-y-6">
-                      <DialogHeader className="text-center space-y-2">
-                        <DialogTitle className="text-xl md:text-2xl font-bold">
-                          Informações do negócio
-                        </DialogTitle>
-                        <DialogDescription className="text-gray-400 text-sm">
-                          Dados essenciais para análise
-                        </DialogDescription>
-                      </DialogHeader>
-
-                      <FormField
-                        control={form.control}
-                        name="instagram"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-white font-medium">
-                              @ do Instagram da empresa
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="@suaempresa"
-                                className="bg-dark-bg border-dark-border text-white placeholder:text-gray-500 h-11 text-base"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="revenue"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-white font-medium">
-                              Faixa de faturamento mensal
-                            </FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger className="bg-dark-bg border-dark-border text-white h-11 text-base w-full">
-                                  <SelectValue placeholder="Selecione a faixa..." />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent className="bg-dark-card border-dark-border w-full">
-                                {revenueOptions.map((option) => (
-                                  <SelectItem 
-                                    key={option.value} 
-                                    value={option.value}
-                                    className="text-white hover:bg-gray-800 focus:bg-gray-800"
-                                  >
-                                    <div className="flex flex-col">
-                                      <span className="font-medium">{option.label}</span>
-                                      <span className="text-xs text-gray-400">{option.description}</span>
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  )}
-
-                  {/* Etapa 4 - Contato */}
-                  {currentStep === 4 && (
                     <div className="space-y-6">
                       <DialogHeader className="text-center space-y-2">
                         <DialogTitle className="text-xl md:text-2xl font-bold">
@@ -585,16 +484,203 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
                           </FormItem>
                         )}
                       />
+                    </div>
+                  )}
 
-                      {error && (
-                        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 flex items-start space-x-3">
-                          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  {/* Etapa 2 - O que sua empresa faz */}
+                  {currentStep === 2 && (
+                    <div className="space-y-6">
+                      <DialogHeader className="text-center space-y-2">
+                        <DialogTitle className="text-xl md:text-2xl font-bold">
+                          Conte brevemente: o que sua empresa faz e para quem?
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-400 text-sm">
+                          Isso nos ajuda a entender melhor seu negócio
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      <FormField
+                        control={form.control}
+                        name="companyDescription"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Ex: Consultoria estratégica para empresas B2B que faturam entre 100k-500k/mês e querem estruturar seus processos comerciais..."
+                                className="bg-dark-bg border-dark-border text-white placeholder:text-gray-500 min-h-[150px] text-base resize-none"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {showSkipWarning && (
+                        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 flex items-start space-x-3 animate-in fade-in duration-300">
+                          <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
                           <div>
-                            <p className="text-red-200 text-sm font-medium">Erro ao enviar</p>
-                            <p className="text-red-300 text-xs mt-1">{error}</p>
+                            <p className="text-yellow-200 text-sm font-medium">
+                              Atenção: Pular esta etapa pode reduzir suas chances
+                            </p>
+                            <p className="text-yellow-300 text-xs mt-1">
+                              Quanto mais informações você fornecer, melhor conseguiremos avaliar a compatibilidade.
+                            </p>
                           </div>
                         </div>
                       )}
+
+                      {showMinTextWarning && (
+                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 flex items-start space-x-3 animate-in fade-in duration-300">
+                          <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-blue-200 text-sm font-medium">
+                              Conte-nos um pouquinho mais para continuar
+                            </p>
+                            <p className="text-blue-300 text-xs mt-1">
+                              Escreva pelo menos algumas palavras ou use &quot;Pular etapa&quot; se preferir não responder.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Etapa 3 - O que impede o crescimento */}
+                  {currentStep === 3 && (
+                    <div className="space-y-6">
+                      <DialogHeader className="text-center space-y-2">
+                        <DialogTitle className="text-xl md:text-2xl font-bold">
+                          O que você sente que está impedindo sua empresa de alcançar o próximo patamar?
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-400 text-sm">
+                          Seja sincero, isso é crucial para nosso diagnóstico
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      <FormField
+                        control={form.control}
+                        name="growthBlocker"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Ex: Sinto que falta estrutura na operação, dependemos muito de mim para fechar negócios, não temos processos claros..."
+                                className="bg-dark-bg border-dark-border text-white placeholder:text-gray-500 min-h-[150px] text-base resize-none"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {showSkipWarning && (
+                        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 flex items-start space-x-3 animate-in fade-in duration-300">
+                          <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-yellow-200 text-sm font-medium">
+                              Atenção: Pular esta etapa pode reduzir suas chances
+                            </p>
+                            <p className="text-yellow-300 text-xs mt-1">
+                              Entender seu bloqueio atual é essencial para identificarmos se podemos ajudar.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {showMinTextWarning && (
+                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 flex items-start space-x-3 animate-in fade-in duration-300">
+                          <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-blue-200 text-sm font-medium">
+                              Conte-nos um pouquinho mais para continuar
+                            </p>
+                            <p className="text-blue-300 text-xs mt-1">
+                              Escreva pelo menos algumas palavras ou use &quot;Pular etapa&quot; se preferir não responder.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Etapa 4 - Infos do negócio */}
+                  {currentStep === 4 && (
+                    <div className="space-y-6">
+                      <DialogHeader className="text-center space-y-2">
+                        <DialogTitle className="text-xl md:text-2xl font-bold">
+                          Informações do negócio
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-400 text-sm">
+                          Dados essenciais para análise
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      <FormField
+                        control={form.control}
+                        name="instagram"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white font-medium">
+                              @ do Instagram da empresa
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="@suaempresa"
+                                className="bg-dark-bg border-dark-border text-white placeholder:text-gray-500 h-11 text-base"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="revenue"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white font-medium">
+                              Faixa de faturamento mensal
+                            </FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="bg-dark-bg border-dark-border text-white h-11 text-base w-full">
+                                  <SelectValue placeholder="Selecione a faixa..." />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent className="bg-dark-card border-dark-border w-full">
+                                {revenueOptions.map((option) => (
+                                  <SelectItem 
+                                    key={option.value} 
+                                    value={option.value}
+                                    className="text-white hover:bg-gray-800 focus:bg-gray-800"
+                                  >
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">{option.label}</span>
+                                      <span className="text-xs text-gray-400">{option.description}</span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
+
+                  {/* Mensagem de Erro */}
+                  {error && (
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 flex items-start space-x-3">
+                      <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-red-200 text-sm font-medium">Erro ao enviar</p>
+                        <p className="text-red-300 text-xs mt-1">{error}</p>
+                      </div>
                     </div>
                   )}
 
@@ -633,7 +719,7 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
                       className={cn(
                         "bg-gradient-to-r from-white to-gray-100 text-black font-bold h-11 px-6 hover:from-gray-100 hover:to-gray-200 transition-all duration-300 shadow-lg",
                         (canSkip && !canContinue()) && "opacity-50",
-                        currentStep === 1 && "ml-auto"
+                        (currentStep === 1 || (canSkip && currentStep === 2)) && "ml-auto"
                       )}
                     >
                       {isSubmitting ? (
