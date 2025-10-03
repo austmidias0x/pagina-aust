@@ -28,7 +28,7 @@ export interface ApiResponse<T = unknown> {
 }
 
 export class ApiService {
-  private static WEBHOOK_URL = 'https://app.bottura.xyz/leads/webhook/be4f98ed-92a9-4b98-bce6-bc6fb3013abf';
+  private static WEBHOOK_URL = 'https://app.bottura.xyz/pitchx/leads/webhook/be4f98ed-92a9-4b98-bce6-bc6fb3013abf';
 
   /**
    * Mapeia dados do formulário para o formato do webhook
